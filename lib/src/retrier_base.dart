@@ -5,6 +5,8 @@ library retrier_base;
 
 import 'dart:async';
 
+import 'package:retrier/src/aggregate_exception.dart';
+
 class Retrier<TResponse> {
   Function _action;
   Duration _retryInterval;
@@ -20,16 +22,16 @@ class Retrier<TResponse> {
     await _retryLogic(numberOfAttempts);
   }
 
-  Future<TResponse> _retryLogic([int numberOfAttempts = 1, List<Exception> exList]) async {
-    if (exList == null) exList = new List<Exception>(numberOfAttempts);
+  Future<TResponse> _retryLogic([int numberOfAttempts = 1, AggregateException aggrEx]) async {
+    if (aggrEx == null) aggrEx = new AggregateException(new List<Exception>());
     try {
-      return new Future(() => _action());
+      return _action();
     } catch (e) {
       numberOfAttempts--;
-      exList.add(e);
-      if (numberOfAttempts <= 0) throw exList;
+      aggrEx.errors.add(e);
+      if (numberOfAttempts <= 0) throw aggrEx;
       Future<TResponse> future = new Future.delayed(
-          _retryInterval, () => _retryLogic(numberOfAttempts, exList));
+          _retryInterval, () => _retryLogic(numberOfAttempts, aggrEx));
       return await future;
     }
   }
